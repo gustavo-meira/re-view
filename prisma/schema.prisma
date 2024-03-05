@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../database/dev.db"
+}
+
+model Genre {
+  id     String        @id @default(cuid())
+  name   String
+  movies MovieGenres[]
+}
+
+model Movie {
+  id          String        @id @default(cuid())
+  title       String
+  genres      MovieGenres[]
+  rating      Rating[]
+  adult       Boolean
+  releaseDate DateTime      @map("release_date")
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  movieId   String
+  rating    Int
+  userId    String
+  Movie     Movie    @relation(fields: [movieId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model MovieGenres {
+  movieId String
+  genreId String
+  Movie   Movie  @relation(fields: [movieId], references: [id])
+  Genre   Genre  @relation(fields: [genreId], references: [id])
+
+  @@id([movieId, genreId])
+}
