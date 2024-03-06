@@ -9,6 +9,9 @@ CREATE TABLE "Movie" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "adult" BOOLEAN NOT NULL,
+    "overview" TEXT NOT NULL,
+    "poster_path" TEXT NOT NULL,
+    "backdrop_path" TEXT NOT NULL,
     "release_date" DATETIME NOT NULL
 );
 
