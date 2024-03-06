@@ -14,12 +14,15 @@ model Genre {
 }
 
 model Movie {
-  id          String        @id @default(cuid())
-  title       String
-  genres      MovieGenres[]
-  rating      Rating[]
-  adult       Boolean
-  releaseDate DateTime      @map("release_date")
+  id           String        @id @default(cuid())
+  title        String
+  genres       MovieGenres[]
+  rating       Rating[]
+  adult        Boolean
+  overview     String
+  posterPath   String        @map("poster_path")
+  backdropPath String        @map("backdrop_path")
+  releaseDate  DateTime      @map("release_date")
 }
 
 model Rating {
