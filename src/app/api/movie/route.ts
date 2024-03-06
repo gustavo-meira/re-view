@@ -2,9 +2,39 @@ import axios from 'axios';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '../_database/prisma';
-import { Movie } from '../_types/movie';
+import { MovieFromTMDB } from '../_types/movie';
+
+const getGenres = async () => {
+  let genres = await prisma.genre.findMany();
+
+  if (genres.length === 0) {
+    const url = new URL('https://api.themoviedb.org/3/genre/movie/list');
+    url.searchParams.set('language', 'pt-BR');
+
+    type URLResponse = {
+      genres: { id: number; name: string }[];
+    };
+    const response = await axios.get<URLResponse>(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${process.env.TMDB_API_KEY}`,
+      },
+    });
+
+    genres = await prisma.$transaction(
+      response.data.genres.map((genre) =>
+        prisma.genre.create({
+          data: { name: genre.name, id: genre.id.toString() },
+        })
+      )
+    );
+  }
+
+  return genres;
+};
 
 export const GET = async (req: Request) => {
+  const genres = await getGenres();
   const searchParamsSchema = z.object({
     page: z.coerce
       .number()
@@ -23,7 +53,7 @@ export const GET = async (req: Request) => {
   url.searchParams.set('language', 'pt-BR');
 
   type URLResponse = {
-    results: Movie[];
+    results: MovieFromTMDB[];
     page: number;
     total_pages: number;
     total_results: number;
@@ -35,29 +65,36 @@ export const GET = async (req: Request) => {
     },
   });
 
-  const moviesRatings = await prisma.rating.findMany({
-    where: {
-      movieId: {
-        in: response.data.results.map((movie) => movie.id.toString()),
-      },
-    },
-  });
+  const moviesWithRatings = await Promise.all(
+    response.data.results.map(async (movie) => {
+      const movieRating = await prisma.rating.aggregate({
+        _avg: {
+          rating: true,
+        },
+        where: {
+          movieId: movie.id.toString(),
+        },
+      });
 
-  const moviesWithRatings = response.data.results.map((movie) => {
-    const ratings = moviesRatings.filter(
-      (rating) => rating.movieId === movie.id.toString()
-    );
+      const movieGenres = movie.genre_ids.map((genreId) => {
+        const genre = genres.find((genre) => genre.id === genreId.toString());
+        if (!genre) throw new Error('Genre not found');
+        return genre;
+      });
 
-    if (ratings.length === 0) return { ...movie, averageRating: 0 };
-
-    const averageRating =
-      ratings.reduce((acc, rating) => acc + rating.rating, 0) / ratings.length;
-
-    return {
-      ...movie,
-      averageRating,
-    };
-  });
+      return {
+        adult: movie.adult,
+        genres: movieGenres,
+        id: movie.id,
+        overview: movie.overview,
+        posterPath: movie.poster_path,
+        backdropPath: movie.backdrop_path,
+        releaseDate: movie.release_date,
+        title: movie.title,
+        averageRating: movieRating._avg.rating,
+      };
+    })
+  );
 
   return NextResponse.json({
     movies: moviesWithRatings,
