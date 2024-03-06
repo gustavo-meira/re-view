@@ -39,7 +39,8 @@ export const GET = async (req: Request) => {
     page: z.coerce
       .number()
       .default(1)
-      .transform((value) => (value < 1 ? 1 : value)),
+      .transform((value) => (value < 1 ? 1 : value))
+      .transform((value) => (value > 500 ? 500 : value)),
   });
 
   const requestUrl = new URL(req.url);
@@ -99,7 +100,7 @@ export const GET = async (req: Request) => {
   return NextResponse.json({
     movies: moviesWithRatings,
     page: response.data.page,
-    totalPages: response.data.total_pages,
+    totalPages: 500,
     totalResults: response.data.total_results,
   });
 };
